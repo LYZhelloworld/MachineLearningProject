@@ -1,13 +1,6 @@
 [Part 2] POS Accuracy: 0.621792735755
 [Part 2] NPC Accuracy: 0.723100956844
-[Part 3] POS Accuracy: 0.0826391202932
-[Part 3] NPC Accuracy: 0.761263146149
-[Part 4] POS Accuracy: 0.0819726757747
-[Part 4] NPC Accuracy: 0.792283873127
-
-[Part 2] POS Accuracy: 0.67710763079
-[Part 2] NPC Accuracy: 0.775713448824
-[Part 3] POS Accuracy: 0.100966344552
-[Part 3] NPC Accuracy: 0.479286969621
-[Part 4] POS Accuracy: 0.0819726757747
-[Part 4] NPC Accuracy: 0.792283873127
+[Part 3] POS Accuracy: 0.694435188271
+[Part 3] NPC Accuracy: 0.793483415628
+[Part 4] POS Accuracy: 0.67244251916
+[Part 4] NPC Accuracy: 0.74525064859

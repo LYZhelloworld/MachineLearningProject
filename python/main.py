@@ -1,6 +1,5 @@
 #!/usr/bin/python
 from heapq import nlargest
-from fractions import Fraction
 from math import log
 
 NPC = r'.\NPC'
@@ -85,7 +84,7 @@ def calculate_part2(filename_train, filename_test):
     for tagname, tag in train_data.iteritems():
         count_y = sum(tag.values())
         for word, frequency in tag.iteritems():
-            emission[(tagname, word)] = Fraction(frequency, count_y + 1)
+            emission[(tagname, word)] = log(frequency) - log(count_y + 1)
 
     # Start parsing
     test = readTesting(filename_test)
@@ -100,9 +99,8 @@ def calculate_part2(filename_train, filename_test):
                 prob[key[0]] = emission[key]
         if prob == {}: # New word
             for tagname, tag in train_data.iteritems():
-                prob[tagname] = Fraction(1, sum(tag.values()) + 1)
+                prob[tagname] = -log(sum(tag.values()) + 1)
                 #prob[tagname] = 1.0 / (len(train_data) + 1)
-        print prob
         result.append((w, max(prob, key = prob.get)))
 
     return result
@@ -136,8 +134,8 @@ def part2():
     if acc != None:
         print '[Part 2] NPC Accuracy:', acc
 
-def calculate_part3(filename_train, filename_test, max_func = lambda v: max(v, key = lambda x: x[0])):
-    debugging = False
+def calculate_part3(filename_train, filename_test, part4 = False):
+    max_func = lambda v: max(v, key = lambda x: x[0])
     train = readTraining(filename_train)
 
     # Build transition probability
@@ -187,10 +185,10 @@ def calculate_part3(filename_train, filename_test, max_func = lambda v: max(v, k
             transition[key1] = {}
         for key2 in count:
             if not transition[key1].has_key(key2):
-                transition[key1][key2] = 0.0
+                transition[key1][key2] = float('-inf')
             if trans.has_key(key1):
                 if trans[key1].has_key(key2):
-                    transition[key1][key2] = Fraction(trans[key1][key2], count[key1])
+                    transition[key1][key2] = log(trans[key1][key2]) - log(count[key1])
 
     # Count emissions
     em = {}
@@ -209,183 +207,152 @@ def calculate_part3(filename_train, filename_test, max_func = lambda v: max(v, k
         if not emission.has_key(tag):
             emission[tag] = {}
         for word in em[tag]:
-            if not emission[tag].has_key(word):
-                emission[tag][word] = 0.0
-            emission[tag][word] = Fraction(em[tag][word], count[tag] + 1)
+            emission[tag][word] = log(em[tag][word]) - log(count[tag] + 1)
 
     # Viterbi
     test = readTesting(filename_test)
     result = []
-    try:
-        sentence = []
-        for w in test:
-            if(w != None):
-                sentence.append(w)
-            else: # End of a sentence
-                # Initialize viterbi
-                if sentence[0] == 'What' and sentence[1] == 'is':
-                    debugging = True
+    sentence = []
+    for w in test:
+        if(w != None):
+            sentence.append(w)
+        else: # End of a sentence
+            # Initialize viterbi
+            viterbi = [{} for i in range(len(sentence) + 1)]
+            for k in viterbi:
+                for tag in count:
+                    if count == '_STOP': # Skip STOP tag
+                        continue
+                    k[tag] = (float('-inf'), None)
+            viterbi[0]['_START'] = (0.0, None)
 
-                viterbi = [{} for i in range(len(sentence) + 1)]
-                for k in viterbi:
-                    for tag in count:
-                        if count == '_STOP': # Skip STOP tag
+            n = len(viterbi) - 1
+            for k in range(1, n + 1):
+                found = False
+                for emission_tag in emission:
+                    if(emission[emission_tag].has_key(sentence[k - 1])):
+                        found = True
+
+                for tag in count:
+                    if tag == '_START' or tag == '_STOP':
+                        viterbi[k][tag] = (float('-inf'), None)
+                        continue
+                    values = []
+                    for prev_tag in count:
+                        if tag == '_STOP':
                             continue
-                        k[tag] = (0.0, None)
-                viterbi[0]['_START'] = (1.0, None)
+                        temp = viterbi[k - 1][prev_tag][0] # pi(k-1, u)
+                        temp += transition[prev_tag][tag] # * a(u, v)
+                        # * b(v, x_k)
+                        if emission.has_key(tag):
+                            if emission[tag].has_key(sentence[k - 1]):
+                                temp += emission[tag][sentence[k - 1]]
+                            else:
+                                if found:
+                                    temp += float('-inf')
+                                else:
+                                    temp += (-log(count[tag] + 1))
+                        else:
+                            if found:
+                                temp += float('-inf')
+                            else:
+                                temp += (-log(count[tag] + 1))
+                        values.append((temp, prev_tag))
 
-                n = len(viterbi) - 1
-                for k in range(1, n + 1):
-                    found = False
-                    for emission_tag in emission:
-                        if(emission[emission_tag].has_key(sentence[k - 1])):
-                            found = True
+                    allzero = True
+                    for v in values:
+                        if v[0] != float('-inf'):
+                            allzero = False
+                    if not allzero:
+                        viterbi[k][tag] = max_func(values)
+                    else:
+                        viterbi[k][tag] = (float('-inf'), None)
 
+                blocked = True
+                for tag in viterbi[k]:
+                    if viterbi[k][tag][0] != float('-inf'):
+                        blocked = False
+                if blocked:
                     for tag in count:
                         if tag == '_START' or tag == '_STOP':
-                            viterbi[k][tag] = (0.0, None)
+                            viterbi[k][tag] = (float('-inf'), None)
                             continue
                         values = []
                         for prev_tag in count:
                             if tag == '_STOP':
                                 continue
                             temp = viterbi[k - 1][prev_tag][0] # pi(k-1, u)
-                            if transition.has_key(prev_tag): # * a(u, v)
-                                if transition[prev_tag].has_key(tag):
-                                    temp *= transition[prev_tag][tag]
-                                else:
-                                    temp *= 0.0
-                            else:
-                                temp *= 0.0
+                            # * a(u, v) = 1 (Blocked mode)
                             # * b(v, x_k)
                             if emission.has_key(tag):
                                 if emission[tag].has_key(sentence[k - 1]):
-                                    temp *= emission[tag][sentence[k - 1]]
+                                    temp += emission[tag][sentence[k - 1]]
                                 else:
                                     if found:
-                                        temp *= 0.0
+                                        temp += float('-inf')
                                     else:
-                                        temp *= Fraction(1, count[tag] + 1)
+                                        temp += (-log(count[tag] + 1))
                             else:
                                 if found:
-                                    temp *= 0.0
+                                    temp += float('-inf')
                                 else:
-                                    temp *= Fraction(1, count[tag] + 1)
+                                    temp += (-log(count[tag] + 1))
                             values.append((temp, prev_tag))
 
                         allzero = True
                         for v in values:
-                            if v[0] != 0:
+                            if v[0] != float('-inf'):
                                 allzero = False
                         if not allzero:
                             viterbi[k][tag] = max_func(values)
                         else:
-                            viterbi[k][tag] = (0.0, None)
+                            viterbi[k][tag] = (float('-inf'), None)
 
-                    blocked = True
-                    for tag in viterbi[k]:
-                        if viterbi[k][tag][0] != 0.0:
-                            blocked = False
-                    if blocked:
-                        for tag in count:
-                            if tag == '_START' or tag == '_STOP':
-                                viterbi[k][tag] = (0.0, None)
-                                continue
-                            values = []
-                            for prev_tag in count:
-                                if tag == '_STOP':
-                                    continue
-                                temp = viterbi[k - 1][prev_tag][0] # pi(k-1, u)
-                                # * a(u, v) = 1 (Blocked mode)
-                                # * b(v, x_k)
-                                if emission.has_key(tag):
-                                    if emission[tag].has_key(sentence[k - 1]):
-                                        temp *= emission[tag][sentence[k - 1]]
-                                    else:
-                                        if found:
-                                            temp *= 0.0
-                                        else:
-                                            temp *= Fraction(1, count[tag] + 1)
-                                else:
-                                    if found:
-                                        temp *= 0.0
-                                    else:
-                                        temp *= Fraction(1, count[tag] + 1)
-                                values.append((temp, prev_tag))
-
-                            allzero = True
-                            for v in values:
-                                if v[0] != 0:
-                                    allzero = False
-                            if not allzero:
-                                viterbi[k][tag] = max_func(values)
-                            else:
-                                viterbi[k][tag] = (0.0, None)
-
-                    if debugging:
-                        print k
-                        print viterbi[k]
-                        raw_input()
-
+            values = []
+            for tag in viterbi[n]: # STOP
+                values.append((viterbi[n][tag][0] + transition[tag]['_STOP'], tag))
+            # Check if all zero
+            allzero = True
+            for v in values:
+                if v[0] != float('-inf'):
+                    allzero = False
+            if allzero:
                 values = []
-                for tag in viterbi[n]: # STOP
-                    temp = viterbi[n][tag][0]
-                    if transition.has_key(tag):
-                        if transition[tag].has_key('_STOP'):
-                            temp *= transition[tag]['_STOP']
-                        else:
-                            temp *= 0.0
-                    else:
-                        temp *= 0.0
-                    values.append((temp, tag))
-                # Check if all zero
-                allzero = True
-                for v in values:
-                    if v[0] != 0:
-                        allzero = False
-                if not allzero:
-                    stop_value = max_func(values)
-                else:
-                    values = []
-                    for tag in viterbi[n]: # STOP
-                        values.append((viterbi[n][tag][0], tag))
-
+                for tag in viterbi[n]: # STOP (Blocked mode)
+                    values.append((viterbi[n][tag][0], tag))
+            if not part4:
                 stop_value = max_func(values)
-
-                # Backtracking
-                result_tags = [stop_value[1]]
-                if debugging:
-                    print result_tags
-                    raw_input()
-                for i in range(n, 0, -1):
-                    if viterbi[i][result_tags[0]][1] != '_START':
-                        if debugging:
-                            print i, result_tags[0]
-                            print viterbi[i]
-                        result_tags.insert(0, viterbi[i][result_tags[0]][1])
-                        if debugging:
-                            print result_tags
-                            raw_input()
+            else:
+                ten_values = nlargest(10, values, key = lambda x: x[0])
+                for i in range(len(ten_values) - 1, -1, -1):
+                    if ten_values[i][0] == float('-inf'):
+                        continue
                     else:
+                        stop_value = ten_values[i]
                         break
 
-                for i in range(len(sentence)):
-                    result.append((sentence[i], result_tags[i]))
-                result.append((None, None))
-                # Prepare for next sentence
-                sentence = []
-    except:
-        print sentence
-        raise
+            # Backtracking
+            result_tags = [stop_value[1]]
+            for i in range(n, 0, -1):
+                if viterbi[i][result_tags[0]][1] != '_START':
+                    result_tags.insert(0, viterbi[i][result_tags[0]][1])
+                else:
+                    break
+
+            for i in range(len(sentence)):
+                result.append((sentence[i], result_tags[i]))
+            result.append((None, None))
+            # Prepare for next sentence
+            sentence = []
     return result
 
 def part3():
-    '''result = calculate_part3(POS_TRAIN, POS_DEV_IN)
+    result = calculate_part3(POS_TRAIN, POS_DEV_IN)
     writeResult(RESULT_POS_P3, result)
     correct = readTraining(POS_DEV_OUT)
     acc = accuracy(result, correct)
     if acc != None:
-        print '[Part 3] POS Accuracy:', acc'''
+        print '[Part 3] POS Accuracy:', acc
 
     result = calculate_part3(NPC_TRAIN, NPC_DEV_IN)
     writeResult(RESULT_NPC_P3, result)
@@ -395,14 +362,14 @@ def part3():
         print '[Part 3] NPC Accuracy:', acc
 
 def part4():
-    result = calculate_part3(POS_TRAIN, POS_DEV_IN, max_func = lambda v: nlargest(10, v, key = lambda x: x[0])[-1])
+    result = calculate_part3(POS_TRAIN, POS_DEV_IN, part4 = True)
     writeResult(RESULT_POS_P4, result)
     correct = readTraining(POS_DEV_OUT)
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 4] POS Accuracy:', acc
 
-    result = calculate_part3(NPC_TRAIN, NPC_DEV_IN, max_func = lambda v: nlargest(10, v, key = lambda x: x[0])[-1])
+    result = calculate_part3(NPC_TRAIN, NPC_DEV_IN, part4 = True)
     writeResult(RESULT_NPC_P4, result)
     correct = readTraining(NPC_DEV_OUT)
     acc = accuracy(result, correct)
@@ -415,6 +382,6 @@ def test():
 
 if __name__ == '__main__':
     pass
-    #part2()
+    part2()
     part3()
-    #part4()
+    part4()
