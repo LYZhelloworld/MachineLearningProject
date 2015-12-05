@@ -33,10 +33,10 @@ def readTraining(filename):
             continue
         temp = line.replace('\n','').split(' ')
         result.append(tuple(temp))
-        
+
     fo.close()
     return result
-    
+
 def readTesting(filename):
     result = []
     fo = open(filename, 'r')
@@ -48,7 +48,7 @@ def readTesting(filename):
             result.append(None)
             continue
         result.append(line.replace('\n',''))
-        
+
     fo.close()
     return result
 
@@ -63,12 +63,12 @@ def writeResult(filename, result):
         fo.write(item[1])
         fo.write('\n')
     fo.close()
-    
+
 def calculate_part2(filename_train, filename_test):
     emission = {}
     train_data = {}
     train = readTraining(filename_train)
-    
+
     # Count tags and words
     for item in train:
         if item == (None, None):
@@ -78,13 +78,13 @@ def calculate_part2(filename_train, filename_test):
         if not train_data[item[1]].has_key(item[0]):
             train_data[item[1]][item[0]] = 0
         train_data[item[1]][item[0]] += 1
-        
+
     # Calculate emission probability
     for tagname, tag in train_data.iteritems():
         count_y = sum(tag.values())
         for word, frequency in tag.iteritems():
-            emission[(tagname, word)] = float(frequency) / count_y
-            
+            emission[(tagname, word)] = float(frequency) / (count_y + 1)
+
     # Start parsing
     test = readTesting(filename_test)
     result = []
@@ -95,18 +95,19 @@ def calculate_part2(filename_train, filename_test):
         prob = {}
         for key in emission:
             if(key[1] == w):
-                prob[key[0]] = key[1]
+                prob[key[0]] = emission[key]
         if prob == {}: # New word
             for tagname, tag in train_data.iteritems():
                 prob[tagname] = 1.0 / (sum(tag.values()) + 1)
+                #prob[tagname] = 1.0 / (len(train_data) + 1)
         result.append((w, max(prob, key = prob.get)))
-        
+
     return result
-    
+
 def accuracy(result, correct):
     count = 0
     correct_count = 0
-    
+
     for i in range(len(result)):
         if(result[i][0] != correct[i][0]):
             print 'Inconsistency detected.'
@@ -114,9 +115,9 @@ def accuracy(result, correct):
         count += 1
         if(result[i][1] == correct[i][1]):
             correct_count += 1
-    
+
     return float(correct_count) / count
-    
+
 def part2():
     result = calculate_part2(POS_TRAIN, POS_DEV_IN)
     writeResult(RESULT_POS_P2, result)
@@ -124,17 +125,17 @@ def part2():
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 2] POS Accuracy:', acc
-        
+
     result = calculate_part2(NPC_TRAIN, NPC_DEV_IN)
     writeResult(RESULT_NPC_P2, result)
     correct = readTraining(NPC_DEV_OUT)
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 2] NPC Accuracy:', acc
-    
+
 def calculate_part3(filename_train, filename_test):
     train = readTraining(filename_train)
-    
+
     # Build transition probability
     # Count every tags and transitions
     count = {'_START': 0, '_STOP': 0}
@@ -144,7 +145,7 @@ def calculate_part3(filename_train, filename_test):
             count['_START'] += 1
         elif train[i - 1] == (None, None):
             count['_START'] += 1
-        
+
         if train[i] == (None, None): # End of sentence
             count['_STOP'] += 1
             if not trans.has_key(train[i - 1][1]):
@@ -174,7 +175,7 @@ def calculate_part3(filename_train, filename_test):
                 if not trans[train[i - 1][1]].has_key(train[i][1]):
                     trans[train[i - 1][1]][train[i][1]] = 0
                 trans[train[i - 1][1]][train[i][1]] += 1
-    
+
     # Calculate transition probability
     transition = {}
     for key1 in count:
@@ -186,7 +187,7 @@ def calculate_part3(filename_train, filename_test):
             if trans.has_key(key1):
                 if trans[key1].has_key(key2):
                     transition[key1][key2] = float(trans[key1][key2]) / count[key1]
-    
+
     # Count emissions
     em = {}
     for item in train:
@@ -197,7 +198,7 @@ def calculate_part3(filename_train, filename_test):
         if not em[item[1]].has_key(item[0]):
             em[item[1]][item[0]] = 0
         em[item[1]][item[0]] += 1
-        
+
     # Calculate emission probability
     emission = {}
     for tag in em:
@@ -206,8 +207,8 @@ def calculate_part3(filename_train, filename_test):
         for word in em[tag]:
             if not emission[tag].has_key(word):
                 emission[tag][word] = 0.0
-            emission[tag][word] = float(em[tag][word]) / count[tag]
-            
+            emission[tag][word] = float(em[tag][word]) / (count[tag] + 1)
+
     # Viterbi
     test = readTesting(filename_test)
     result = []
@@ -224,8 +225,8 @@ def calculate_part3(filename_train, filename_test):
                         continue
                     k[tag] = (0.0, None)
             viterbi[0]['_START'] = (1.0, None)
-            
-            n = len(viterbi) - 1            
+
+            n = len(viterbi) - 1
             for k in range(1, n + 1):
                 for tag in viterbi[k]:
                     if tag == '_START':
@@ -247,11 +248,13 @@ def calculate_part3(filename_train, filename_test):
                                 temp *= emission[tag][sentence[k - 1]]
                             else:
                                 temp *= 1.0 / (count[tag] + 1)
+                                #temp *= 1.0 / (len(emission) + 1)
                         else:
                             temp *= 1.0 / (count[tag] + 1)
+                            #temp *= 1.0 / (len(emission) + 1)
                         values.append((temp, prev_tag))
                     viterbi[k][tag] = max(values, key = lambda x: x[0])
-            
+
             values = []
             for tag in viterbi[n]: # STOP
                 temp = 1.0
@@ -265,7 +268,7 @@ def calculate_part3(filename_train, filename_test):
                     temp *= 0.0
                 values.append((temp, tag))
             stop_value = max(values, key = lambda x: x[0])
-            
+
             # Backtracking
             result_tags = [stop_value[1]]
             for i in range(n, 0, -1):
@@ -281,7 +284,7 @@ def calculate_part3(filename_train, filename_test):
             # Prepare for next sentence
             sentence = []
     return result
-    
+
 def part3():
     result = calculate_part3(POS_TRAIN, POS_DEV_IN)
     writeResult(RESULT_POS_P3, result)
@@ -289,17 +292,17 @@ def part3():
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 3] POS Accuracy:', acc
-        
+
     result = calculate_part3(NPC_TRAIN, NPC_DEV_IN)
     writeResult(RESULT_NPC_P3, result)
     correct = readTraining(NPC_DEV_OUT)
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 3] NPC Accuracy:', acc
-    
+
 def calculate_part4(filename_train, filename_test):
     train = readTraining(filename_train)
-    
+
     # Build transition probability
     # Count every tags and transitions
     count = {'_START': 0, '_STOP': 0}
@@ -309,7 +312,7 @@ def calculate_part4(filename_train, filename_test):
             count['_START'] += 1
         elif train[i - 1] == (None, None):
             count['_START'] += 1
-        
+
         if train[i] == (None, None): # End of sentence
             count['_STOP'] += 1
             if not trans.has_key(train[i - 1][1]):
@@ -339,7 +342,7 @@ def calculate_part4(filename_train, filename_test):
                 if not trans[train[i - 1][1]].has_key(train[i][1]):
                     trans[train[i - 1][1]][train[i][1]] = 0
                 trans[train[i - 1][1]][train[i][1]] += 1
-    
+
     # Calculate transition probability
     transition = {}
     for key1 in count:
@@ -351,7 +354,7 @@ def calculate_part4(filename_train, filename_test):
             if trans.has_key(key1):
                 if trans[key1].has_key(key2):
                     transition[key1][key2] = float(trans[key1][key2]) / count[key1]
-    
+
     # Count emissions
     em = {}
     for item in train:
@@ -362,7 +365,7 @@ def calculate_part4(filename_train, filename_test):
         if not em[item[1]].has_key(item[0]):
             em[item[1]][item[0]] = 0
         em[item[1]][item[0]] += 1
-        
+
     # Calculate emission probability
     emission = {}
     for tag in em:
@@ -371,8 +374,8 @@ def calculate_part4(filename_train, filename_test):
         for word in em[tag]:
             if not emission[tag].has_key(word):
                 emission[tag][word] = 0.0
-            emission[tag][word] = float(em[tag][word]) / count[tag]
-            
+            emission[tag][word] = float(em[tag][word]) / (count[tag] + 1)
+
     # Viterbi
     test = readTesting(filename_test)
     result = []
@@ -389,8 +392,8 @@ def calculate_part4(filename_train, filename_test):
                         continue
                     k[tag] = (0.0, None)
             viterbi[0]['_START'] = (1.0, None)
-            
-            n = len(viterbi) - 1            
+
+            n = len(viterbi) - 1
             for k in range(1, n + 1):
                 for tag in viterbi[k]:
                     if tag == '_START':
@@ -412,11 +415,13 @@ def calculate_part4(filename_train, filename_test):
                                 temp *= emission[tag][sentence[k - 1]]
                             else:
                                 temp *= 1.0 / (count[tag] + 1)
+                                #temp *= 1.0 / (len(emission) + 1)
                         else:
                             temp *= 1.0 / (count[tag] + 1)
+                            #temp *= 1.0 / (len(emission) + 1)
                         values.append((temp, prev_tag))
                     viterbi[k][tag] = nlargest(10, values, key = lambda x: x[0])[-1]
-            
+
             values = []
             for tag in viterbi[n]: # STOP
                 temp = 1.0
@@ -430,7 +435,7 @@ def calculate_part4(filename_train, filename_test):
                     temp *= 0.0
                 values.append((temp, tag))
             stop_value = max(values, key = lambda x: x[0])
-            
+
             # Backtracking
             result_tags = [stop_value[1]]
             for i in range(n, 0, -1):
@@ -445,8 +450,9 @@ def calculate_part4(filename_train, filename_test):
             result.append((None, None))
             # Prepare for next sentence
             sentence = []
+
     return result
-    
+
 def part4():
     result = calculate_part4(POS_TRAIN, POS_DEV_IN)
     writeResult(RESULT_POS_P4, result)
@@ -454,14 +460,18 @@ def part4():
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 4] POS Accuracy:', acc
-        
+
     result = calculate_part4(NPC_TRAIN, NPC_DEV_IN)
     writeResult(RESULT_NPC_P4, result)
     correct = readTraining(NPC_DEV_OUT)
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 4] NPC Accuracy:', acc
-    
+
+def test():
+    result = calculate_part2(r'.\train', r'.\test')
+    writeResult(r'.\test_result', result)
+
 if __name__ == '__main__':
     pass
     part2()
