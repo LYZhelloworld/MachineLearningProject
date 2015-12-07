@@ -21,6 +21,9 @@ RESULT_NPC_P2 = RESULT_NPC + r'\dev.p2.out'
 RESULT_NPC_P3 = RESULT_NPC + r'\dev.p3.out'
 RESULT_NPC_P4 = RESULT_NPC + r'\dev.p4.out'
 
+TEST_IN = r'.\test.in'
+TEST_OUT = r'.\test.out'
+
 # This function can be used to read both training data and parsed data
 def readTraining(filename):
     result = []
@@ -134,7 +137,7 @@ def part2():
     if acc != None:
         print '[Part 2] NPC Accuracy:', acc
 
-def calculate_part3(filename_train, filename_test, part4 = False):
+def calculate_part3(filename_train, filename_test, part4 = False, part5 = False):
     max_func = lambda v: max(v, key = lambda x: x[0])
     train = readTraining(filename_train)
 
@@ -251,12 +254,18 @@ def calculate_part3(filename_train, filename_test, part4 = False):
                                 if found:
                                     temp += float('-inf')
                                 else:
-                                    temp += (-log(count[tag] + 1))
+                                    if part5:
+                                        temp += log(count[tag]) - log(count[tag] + 1)
+                                    else:
+                                        temp += (-log(count[tag] + 1))
                         else:
                             if found:
                                 temp += float('-inf')
                             else:
-                                temp += (-log(count[tag] + 1))
+                                if part5:
+                                    temp += log(count[tag]) - log(count[tag] + 1)
+                                else:
+                                    temp += (-log(count[tag] + 1))
                         values.append((temp, prev_tag))
 
                     allzero = True
@@ -291,12 +300,18 @@ def calculate_part3(filename_train, filename_test, part4 = False):
                                     if found:
                                         temp += float('-inf')
                                     else:
-                                        temp += (-log(count[tag] + 1))
+                                        if part5:
+                                            temp += log(count[tag]) - log(count[tag] + 1)
+                                        else:
+                                            temp += (-log(count[tag] + 1))
                             else:
                                 if found:
                                     temp += float('-inf')
                                 else:
-                                    temp += (-log(count[tag] + 1))
+                                    if part5:
+                                        temp += log(count[tag]) - log(count[tag] + 1)
+                                    else:
+                                        temp += (-log(count[tag] + 1))
                             values.append((temp, prev_tag))
 
                         allzero = True
@@ -376,12 +391,30 @@ def part4():
     if acc != None:
         print '[Part 4] NPC Accuracy:', acc
 
+def part5():
+    result = calculate_part3(POS_TRAIN, POS_DEV_IN, part5 = True)
+    writeResult(RESULT_POS_P4, result)
+    correct = readTraining(POS_DEV_OUT)
+    acc = accuracy(result, correct)
+    if acc != None:
+        print '[Part 5] POS Accuracy:', acc
+
+    result = calculate_part3(NPC_TRAIN, NPC_DEV_IN, part5 = True)
+    writeResult(RESULT_NPC_P4, result)
+    correct = readTraining(NPC_DEV_OUT)
+    acc = accuracy(result, correct)
+    if acc != None:
+        print '[Part 5] NPC Accuracy:', acc
+
 def test():
-    result = calculate_part2(r'.\train', r'.\test')
-    writeResult(r'.\test_result', result)
+    result = calculate_part3(POS_TRAIN, TEST_IN, part5 = True)
+    writeResult(TEST_OUT, result)
+    print 'Test result generated.'
 
 if __name__ == '__main__':
     pass
-    part2()
-    part3()
-    part4()
+    #part2()
+    #part3()
+    #part4()
+    #part5()
+    test()
