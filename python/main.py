@@ -16,13 +16,15 @@ RESULT_POS = RESULT + r'\POS'
 RESULT_POS_P2 = RESULT_POS + r'\dev.p2.out'
 RESULT_POS_P3 = RESULT_POS + r'\dev.p3.out'
 RESULT_POS_P4 = RESULT_POS + r'\dev.p4.out'
+RESULT_POS_P5 = RESULT_POS + r'\dev.p5.out'
 RESULT_NPC = RESULT + r'\NPC'
 RESULT_NPC_P2 = RESULT_NPC + r'\dev.p2.out'
 RESULT_NPC_P3 = RESULT_NPC + r'\dev.p3.out'
 RESULT_NPC_P4 = RESULT_NPC + r'\dev.p4.out'
+RESULT_NPC_P5 = RESULT_NPC + r'\dev.p5.out'
 
 TEST_IN = r'.\test.in'
-TEST_OUT = r'.\test.out'
+TEST_OUT = r'.\test.p5.out'
 
 # This function can be used to read both training data and parsed data
 def readTraining(filename):
@@ -393,14 +395,14 @@ def part4():
 
 def part5():
     result = calculate_part3(POS_TRAIN, POS_DEV_IN, part5 = True)
-    writeResult(RESULT_POS_P4, result)
+    writeResult(RESULT_POS_P5, result)
     correct = readTraining(POS_DEV_OUT)
     acc = accuracy(result, correct)
     if acc != None:
         print '[Part 5] POS Accuracy:', acc
 
     result = calculate_part3(NPC_TRAIN, NPC_DEV_IN, part5 = True)
-    writeResult(RESULT_NPC_P4, result)
+    writeResult(RESULT_NPC_P5, result)
     correct = readTraining(NPC_DEV_OUT)
     acc = accuracy(result, correct)
     if acc != None:
@@ -417,4 +419,4 @@ if __name__ == '__main__':
     #part3()
     #part4()
     #part5()
-    test()
+    #test()
